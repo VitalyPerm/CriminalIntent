@@ -5,10 +5,11 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -17,16 +18,13 @@ import com.elvitalya.criminalintent.databinding.FragmentCrimeListBinding
 private const val TAG = "CrimeListFragment"
 
 class CrimeListFragment : Fragment() {
-    private var adapter: CrimeAdapter? = null
+    private var adapter: CrimeAdapter? = CrimeAdapter(emptyList())
     private lateinit var bind: FragmentCrimeListBinding
     private val crimeListViewModel: CrimeListViewModel by lazy {
         ViewModelProviders.of(this).get(CrimeListViewModel::class.java)
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        Log.d(TAG, "Total crimes: ${crimeListViewModel.crimes.size}")
-    }
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -35,14 +33,24 @@ class CrimeListFragment : Fragment() {
     ): View? {
         bind = FragmentCrimeListBinding.inflate(layoutInflater, container, false)
         bind.crimeRecyclerView.layoutManager = LinearLayoutManager(context)
-
-        updateUI()
+        bind.crimeRecyclerView.adapter = adapter
         return bind.root
 
     }
 
-    private fun updateUI() {
-        val crimes = crimeListViewModel.crimes
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        crimeListViewModel.crimeListLiveData.observe(
+            viewLifecycleOwner,
+            Observer { crimes ->
+                crimes?.let {
+                    Log.i(TAG, "Got crimes ${crimes.size}")
+                    updateUI(crimes)
+                }
+            })
+    }
+
+    private fun updateUI(crimes: List<Crime>) {
         adapter = CrimeAdapter(crimes)
         bind.crimeRecyclerView.adapter = adapter
     }
@@ -57,15 +65,24 @@ class CrimeListFragment : Fragment() {
 
     private inner class CrimeHolder(view: View) : RecyclerView.ViewHolder(view), View.OnClickListener {
         private lateinit var crime: Crime
+        val solvedImageView: ImageView = itemView.findViewById(R.id.crime_solved)
         val titleTextView: TextView = itemView.findViewById(R.id.crime_title)
         val dateTextView: TextView = itemView.findViewById(R.id.crime_date)
+
+
         init {
             itemView.setOnClickListener(this)
         }
         fun binding(crime: Crime){
             this.crime = crime
             titleTextView.text = this.crime.title
-            dateTextView.text = this. crime.date.toString()
+            dateTextView.text = android.text.format.DateFormat.format("EEEE dd MMM yyyy, hh:mm", this.crime.date)
+
+            solvedImageView.visibility = if(crime.isSolved){
+                View.VISIBLE
+            }else{
+                View.GONE
+            }
         }
 
         override fun onClick(v: View?) {
